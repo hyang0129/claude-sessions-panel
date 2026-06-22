@@ -24,17 +24,25 @@ as an independent companion view in the same window.
 
 ## Actions
 
-- **Click a row** → opens an integrated terminal and runs `claude --resume <id>` in the
-  session's folder.
-- **Right-click** → Open Transcript (JSONL), Reveal in Finder, Copy Session ID.
+- **Click a row** → opens the session **in the official Claude Code extension panel**
+  (via its `claude-vscode.editor.open` command, passing the session id). If that extension
+  isn't installed, it falls back to a terminal `claude --resume`.
+- **Resume in Terminal** (inline ▶ / right-click) → opens an integrated terminal and runs
+  `claude --resume <id>` in the session's folder.
+- **Right-click** → Open in Claude Code, Resume in Terminal, Open Transcript (JSONL),
+  Reveal in Finder, Copy Session ID.
 - **Refresh** button in the view title bar. The panel also auto-refreshes on transcript
   file changes and on a timer.
+
+Set `claudeSessions.clickAction` to `resumeInTerminal` if you'd rather a click drop
+straight into a terminal instead of the Claude panel.
 
 ## Settings
 
 | Setting | Default | Description |
 | --- | --- | --- |
-| `claudeSessions.claudeBinary` | `claude` | CLI used to resume a session. |
+| `claudeSessions.clickAction` | `openInClaude` | Click behavior: `openInClaude` or `resumeInTerminal`. |
+| `claudeSessions.claudeBinary` | `claude` | CLI used to resume a session in a terminal. |
 | `claudeSessions.projectsDir` | `~/.claude/projects` | Override the Claude projects directory. |
 | `claudeSessions.activeThresholdSeconds` | `60` | Age under which a session is "active". |
 | `claudeSessions.recentThresholdSeconds` | `3600` | Age under which a session is "recent". |

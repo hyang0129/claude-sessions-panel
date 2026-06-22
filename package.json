@@ -2,7 +2,7 @@
   "name": "claude-sessions-panel",
   "displayName": "Claude Sessions Panel",
   "description": "A sidebar panel listing this project's Claude Code sessions with live status, clickable to resume.",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "publisher": "hyang0129",
   "license": "MIT",
   "repository": {
@@ -58,10 +58,16 @@
         "icon": "$(refresh)"
       },
       {
-        "command": "claudeSessions.resume",
-        "title": "Resume Session",
+        "command": "claudeSessions.open",
+        "title": "Open in Claude Code",
         "category": "Claude Sessions",
-        "icon": "$(debug-start)"
+        "icon": "$(comment-discussion)"
+      },
+      {
+        "command": "claudeSessions.resumeInTerminal",
+        "title": "Resume in Terminal",
+        "category": "Claude Sessions",
+        "icon": "$(terminal)"
       },
       {
         "command": "claudeSessions.openTranscript",
@@ -90,9 +96,24 @@
       ],
       "view/item/context": [
         {
-          "command": "claudeSessions.resume",
+          "command": "claudeSessions.open",
           "when": "view == claudeSessions.list && viewItem == claudeSession",
-          "group": "inline"
+          "group": "inline@1"
+        },
+        {
+          "command": "claudeSessions.resumeInTerminal",
+          "when": "view == claudeSessions.list && viewItem == claudeSession",
+          "group": "inline@2"
+        },
+        {
+          "command": "claudeSessions.open",
+          "when": "view == claudeSessions.list && viewItem == claudeSession",
+          "group": "0_run@1"
+        },
+        {
+          "command": "claudeSessions.resumeInTerminal",
+          "when": "view == claudeSessions.list && viewItem == claudeSession",
+          "group": "0_run@2"
         },
         {
           "command": "claudeSessions.openTranscript",
@@ -114,6 +135,16 @@
     "configuration": {
       "title": "Claude Sessions Panel",
       "properties": {
+        "claudeSessions.clickAction": {
+          "type": "string",
+          "enum": ["openInClaude", "resumeInTerminal"],
+          "enumDescriptions": [
+            "Open the session in the official Claude Code extension panel.",
+            "Resume the session by running `claude --resume` in an integrated terminal."
+          ],
+          "default": "openInClaude",
+          "description": "What clicking a session row does."
+        },
         "claudeSessions.claudeBinary": {
           "type": "string",
           "default": "claude",

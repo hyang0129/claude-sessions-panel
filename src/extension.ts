@@ -7,6 +7,7 @@ type Status = 'active' | 'recent' | 'idle';
 function getConfig() {
   const cfg = vscode.workspace.getConfiguration('claudeSessions');
   return {
+    clickAction: cfg.get<'openInClaude' | 'resumeInTerminal'>('clickAction', 'openInClaude'),
     claudeBinary: cfg.get<string>('claudeBinary', 'claude'),
     projectsDir: getProjectsDir(cfg.get<string>('projectsDir', '')),
     activeThresholdSeconds: cfg.get<number>('activeThresholdSeconds', 60),
@@ -82,8 +83,8 @@ class SessionItem extends vscode.TreeItem {
     this.tooltip = md;
 
     this.command = {
-      command: 'claudeSessions.resume',
-      title: 'Resume Session',
+      command: 'claudeSessions._click',
+      title: 'Open',
       arguments: [this],
     };
   }
@@ -138,6 +139,37 @@ function resolveTarget(provider: SessionsProvider, view: vscode.TreeView<Session
   return view.selection[0];
 }
 
+/**
+ * The official Claude Code extension registers this command as
+ * editor.open(sessionId, initialPrompt?, viewColumn?). Passing an existing
+ * session id routes through its createPanel(), which reveals an already-open
+ * panel or builds the webview for that id — i.e. resumes the conversation.
+ */
+const CLAUDE_OPEN_COMMAND = 'claude-vscode.editor.open';
+
+function resumeInTerminal(item: SessionItem): void {
+  const cfg = getConfig();
+  const cwd = item.session.cwd || item.session.folderPath;
+  const term = vscode.window.createTerminal({
+    name: `Claude: ${item.session.title.slice(0, 24)}`,
+    cwd,
+  });
+  term.show();
+  term.sendText(`${cfg.claudeBinary} --resume ${item.session.id}`);
+}
+
+async function openInClaude(item: SessionItem): Promise<void> {
+  const available = await vscode.commands.getCommands(true);
+  if (available.includes(CLAUDE_OPEN_COMMAND)) {
+    await vscode.commands.executeCommand(CLAUDE_OPEN_COMMAND, item.session.id);
+  } else {
+    vscode.window.showWarningMessage(
+      `Claude Code extension command "${CLAUDE_OPEN_COMMAND}" not found — resuming in a terminal instead.`,
+    );
+    resumeInTerminal(item);
+  }
+}
+
 export function activate(context: vscode.ExtensionContext): void {
   const provider = new SessionsProvider();
   const view = vscode.window.createTreeView('claudeSessions.list', {
@@ -149,20 +181,34 @@ export function activate(context: vscode.ExtensionContext): void {
   context.subscriptions.push(
     vscode.commands.registerCommand('claudeSessions.refresh', () => provider.refresh()),
 
-    vscode.commands.registerCommand('claudeSessions.resume', (arg?: SessionItem) => {
+    vscode.commands.registerCommand('claudeSessions._click', (arg?: SessionItem) => {
       const item = resolveTarget(provider, view, arg);
       if (!item) {
-        vscode.window.showInformationMessage('No Claude session selected.');
         return;
       }
-      const cfg = getConfig();
-      const cwd = item.session.cwd || item.session.folderPath;
-      const term = vscode.window.createTerminal({
-        name: `Claude: ${item.session.title.slice(0, 24)}`,
-        cwd,
-      });
-      term.show();
-      term.sendText(`${cfg.claudeBinary} --resume ${item.session.id}`);
+      if (getConfig().clickAction === 'resumeInTerminal') {
+        resumeInTerminal(item);
+      } else {
+        void openInClaude(item);
+      }
+    }),
+
+    vscode.commands.registerCommand('claudeSessions.open', (arg?: SessionItem) => {
+      const item = resolveTarget(provider, view, arg);
+      if (item) {
+        void openInClaude(item);
+      } else {
+        vscode.window.showInformationMessage('No Claude session selected.');
+      }
+    }),
+
+    vscode.commands.registerCommand('claudeSessions.resumeInTerminal', (arg?: SessionItem) => {
+      const item = resolveTarget(provider, view, arg);
+      if (item) {
+        resumeInTerminal(item);
+      } else {
+        vscode.window.showInformationMessage('No Claude session selected.');
+      }
     }),
 
     vscode.commands.registerCommand('claudeSessions.openTranscript', (arg?: SessionItem) => {
