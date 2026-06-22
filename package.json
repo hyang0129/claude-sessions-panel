@@ -2,7 +2,7 @@
   "name": "claude-sessions-panel",
   "displayName": "Claude Sessions Panel",
   "description": "A sidebar panel listing this project's Claude Code sessions with live status, clickable to resume.",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "publisher": "hyang0129",
   "license": "MIT",
   "repository": {
@@ -10,7 +10,7 @@
     "url": "https://github.com/hyang0129/claude-sessions-panel.git"
   },
   "engines": {
-    "vscode": "^1.85.0"
+    "vscode": "^1.106.0"
   },
   "categories": [
     "Other"
@@ -27,7 +27,7 @@
   ],
   "contributes": {
     "viewsContainers": {
-      "activitybar": [
+      "secondarySidebar": [
         {
           "id": "claudeSessions",
           "title": "Claude Sessions",

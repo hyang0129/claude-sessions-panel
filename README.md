@@ -1,8 +1,11 @@
 # Claude Sessions Panel
 
-A small VS Code extension that adds a **Claude Sessions** panel to the activity bar,
-listing the Claude Code sessions for the **current project** — with a live status dot,
-clickable to resume.
+A small VS Code extension that adds a **Claude Sessions** panel to the **secondary side bar**
+(the right pane, where Copilot Chat normally lives), listing the Claude Code sessions for the
+**current project** — with a live status dot, clickable to resume.
+
+> Requires VS Code ≥ 1.106 (for the `secondarySidebar` view-container location). You can drag
+> the container to any side bar; the right pane is just its default home.
 
 It does **not** modify or fork the official Claude Code extension. It sits alongside it
 as an independent companion view in the same window.
