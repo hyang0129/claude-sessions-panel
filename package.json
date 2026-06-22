@@ -2,7 +2,7 @@
   "name": "claude-sessions-panel",
   "displayName": "Claude Sessions Panel",
   "description": "A sidebar panel listing this project's Claude Code sessions with live status, clickable to resume.",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "publisher": "hyang0129",
   "license": "MIT",
   "repository": {
@@ -169,6 +169,21 @@
           "type": "number",
           "default": 15,
           "description": "How often to refresh status from disk. 0 disables the timer (file changes still refresh)."
+        },
+        "claudeSessions.groupSessions": {
+          "type": "boolean",
+          "default": true,
+          "description": "Split sessions into Recent and Archived groups. Grouping only kicks in once there are more than `recentCount` sessions."
+        },
+        "claudeSessions.recentCount": {
+          "type": "number",
+          "default": 5,
+          "description": "How many of the most-recently-active sessions stay in the Recent group; older ones are archived."
+        },
+        "claudeSessions.archiveAfterDays": {
+          "type": "number",
+          "default": 0,
+          "description": "Also archive any session whose last activity is older than this many days, regardless of rank. 0 disables the age cap."
         }
       }
     }

@@ -20,10 +20,14 @@ as an independent companion view in the same window.
 - **Warp-style row**: a **headline** (Claude Code's generated `ai-title`, falling back to the
   first prompt) as the label, with a dimmed **trailing detail** snippet (most recent prompt)
   and relative time after it.
-- **Status dot** based on transcript activity:
-  - 🟢 active — modified in the last 60s
-  - 🟡 recent — modified in the last hour
-  - ⚪ idle — older
+- **Recent / Archived groups** — sessions are ranked by last activity; the most-recently-active
+  `recentCount` (default 5) sit in an expanded **Recent** group, the rest collapse into
+  **Archived**. Grouping only appears once there's a backlog (more than `recentCount` sessions).
+- **Status dot** (within Recent) based on last activity — the newest user/assistant message
+  timestamp, not raw file mtime:
+  - 🟢 active — last activity < 60s ago
+  - 🟡 recent — last activity < 1h ago
+  - ⚪ idle — older (and all Archived rows)
 - **Description** = relative last-active time (and folder name in multi-root workspaces).
 - **Tooltip** = session id, cwd, message count, last-active time.
 
@@ -52,6 +56,9 @@ straight into a terminal instead of the Claude panel.
 | `claudeSessions.activeThresholdSeconds` | `60` | Age under which a session is "active". |
 | `claudeSessions.recentThresholdSeconds` | `3600` | Age under which a session is "recent". |
 | `claudeSessions.autoRefreshSeconds` | `15` | Status refresh interval (0 disables the timer). |
+| `claudeSessions.groupSessions` | `true` | Split into Recent/Archived groups (once past `recentCount`). |
+| `claudeSessions.recentCount` | `5` | How many most-recently-active sessions stay in Recent. |
+| `claudeSessions.archiveAfterDays` | `0` | Also archive sessions older than N days (0 = off). |
 
 ## Develop
 
@@ -72,7 +79,11 @@ code --install-extension claude-sessions-panel-*.vsix
 
 ## Status / roadmap
 
-v0.1 — project-scoped session list, recency status, resume/open/reveal.
+- v0.1 — project-scoped session list, recency status, resume/open/reveal.
+- v0.2 — click opens the session in the official Claude Code extension panel.
+- v0.3 — panel defaults to the secondary side bar (right pane).
+- v0.4 — Warp-style rows (headline + trailing detail).
+- v0.5 — rank-based recency status with Recent/Archived grouping ([#1](https://github.com/hyang0129/claude-sessions-panel/issues/1)).
 
 Possible next steps: live process-attached status (is a `claude` process bound to this
 session right now), session search/filter, rename, and a "new session" launcher.
