@@ -13,11 +13,14 @@ function getConfig() {
     activeThresholdSeconds: cfg.get<number>('activeThresholdSeconds', 60),
     recentThresholdSeconds: cfg.get<number>('recentThresholdSeconds', 3600),
     autoRefreshSeconds: cfg.get<number>('autoRefreshSeconds', 15),
+    groupSessions: cfg.get<boolean>('groupSessions', true),
+    recentCount: cfg.get<number>('recentCount', 5),
+    archiveAfterDays: cfg.get<number>('archiveAfterDays', 0),
   };
 }
 
 function statusOf(s: Session, now: number, activeSec: number, recentSec: number): Status {
-  const ageSec = (now - s.mtimeMs) / 1000;
+  const ageSec = (now - s.lastActivityMs) / 1000;
   if (ageSec <= activeSec) {
     return 'active';
   }
@@ -84,7 +87,7 @@ class SessionItem extends vscode.TreeItem {
     this.contextValue = 'claudeSession';
     this.iconPath = iconFor(status);
 
-    const rel = relativeTime(session.mtimeMs, now);
+    const rel = relativeTime(session.lastActivityMs, now);
     const folderTag = showFolder ? ` · ${path.basename(session.folderPath)}` : '';
     // Warp-style: prominent headline (label) + dimmed trailing detail (description).
     const detail = pickDetail(session);
@@ -120,7 +123,28 @@ function escapeMd(s: string): string {
   return s.replace(/[\\`*_{}[\]()#+\-.!]/g, (c) => `\\${c}`);
 }
 
-class SessionsProvider implements vscode.TreeDataProvider<SessionItem> {
+class GroupItem extends vscode.TreeItem {
+  constructor(
+    label: string,
+    public readonly sessions: Session[],
+    public readonly kind: 'recent' | 'archived',
+    expanded: boolean,
+    public readonly showFolder: boolean,
+  ) {
+    super(
+      label,
+      expanded ? vscode.TreeItemCollapsibleState.Expanded : vscode.TreeItemCollapsibleState.Collapsed,
+    );
+    this.id = `group:${kind}`;
+    this.description = `${sessions.length}`;
+    this.contextValue = 'claudeGroup';
+    this.iconPath = new vscode.ThemeIcon(kind === 'recent' ? 'pulse' : 'archive');
+  }
+}
+
+type TreeNode = GroupItem | SessionItem;
+
+class SessionsProvider implements vscode.TreeDataProvider<TreeNode> {
   private readonly _onDidChange = new vscode.EventEmitter<void>();
   readonly onDidChangeTreeData = this._onDidChange.event;
 
@@ -128,25 +152,75 @@ class SessionsProvider implements vscode.TreeDataProvider<SessionItem> {
     this._onDidChange.fire();
   }
 
-  getTreeItem(element: SessionItem): vscode.TreeItem {
+  getTreeItem(element: TreeNode): vscode.TreeItem {
     return element;
   }
 
-  async getChildren(element?: SessionItem): Promise<SessionItem[]> {
-    if (element) {
+  async getChildren(element?: TreeNode): Promise<TreeNode[]> {
+    const cfg = getConfig();
+    const now = Date.now();
+
+    // Expanding a group → its sessions. Archived rows get a muted (idle) dot;
+    // Recent rows keep the fine-grained active/recent/idle status.
+    if (element instanceof GroupItem) {
+      return element.sessions.map(
+        (s) =>
+          new SessionItem(
+            s,
+            element.kind === 'archived'
+              ? 'idle'
+              : statusOf(s, now, cfg.activeThresholdSeconds, cfg.recentThresholdSeconds),
+            now,
+            element.showFolder,
+          ),
+      );
+    }
+    if (element instanceof SessionItem) {
       return [];
     }
+
+    // Root.
     const folders = (vscode.workspace.workspaceFolders ?? []).map((f) => f.uri.fsPath);
     if (folders.length === 0) {
       return [];
     }
-
-    const cfg = getConfig();
     const sessions = await listSessions(folders, cfg.projectsDir);
-    const now = Date.now();
+    if (sessions.length === 0) {
+      return [];
+    }
     const showFolder = folders.length > 1;
 
-    return sessions.map(
+    // Rank-based split: the most-recently-active `recentCount` form the working set;
+    // anything past that is archived (you've probably moved on). See issue #1.
+    const n = Math.max(0, cfg.recentCount);
+    let recent = sessions.slice(0, n);
+    let archived = sessions.slice(n);
+
+    // Optional absolute-age cap: demote stale sessions out of Recent regardless of rank.
+    if (cfg.archiveAfterDays > 0) {
+      const cutoff = now - cfg.archiveAfterDays * 86_400_000;
+      const keep: Session[] = [];
+      const demote: Session[] = [];
+      for (const s of recent) {
+        (s.lastActivityMs >= cutoff ? keep : demote).push(s);
+      }
+      recent = keep;
+      archived = [...demote, ...archived]; // demoted are newer than the rest → preserves desc order
+    }
+
+    // Only introduce group headers when there's actually a backlog to archive.
+    if (cfg.groupSessions && archived.length > 0) {
+      const groups: TreeNode[] = [];
+      if (recent.length > 0) {
+        groups.push(new GroupItem('Recent', recent, 'recent', true, showFolder));
+      }
+      groups.push(new GroupItem('Archived', archived, 'archived', false, showFolder));
+      return groups;
+    }
+
+    // Flat list (small project, or grouping disabled).
+    const flat = cfg.groupSessions ? [...recent, ...archived] : sessions;
+    return flat.map(
       (s) =>
         new SessionItem(
           s,
@@ -158,11 +232,12 @@ class SessionsProvider implements vscode.TreeDataProvider<SessionItem> {
   }
 }
 
-function resolveTarget(provider: SessionsProvider, view: vscode.TreeView<SessionItem>, arg?: SessionItem): SessionItem | undefined {
+function resolveTarget(provider: SessionsProvider, view: vscode.TreeView<TreeNode>, arg?: TreeNode): SessionItem | undefined {
   if (arg instanceof SessionItem) {
     return arg;
   }
-  return view.selection[0];
+  const sel = view.selection[0];
+  return sel instanceof SessionItem ? sel : undefined;
 }
 
 /**
@@ -282,6 +357,15 @@ export function activate(context: vscode.ExtensionContext): void {
   // Re-list when folders change.
   context.subscriptions.push(
     vscode.workspace.onDidChangeWorkspaceFolders(() => provider.refresh()),
+  );
+
+  // Re-render when our settings change (grouping, recentCount, thresholds, …).
+  context.subscriptions.push(
+    vscode.workspace.onDidChangeConfiguration((e) => {
+      if (e.affectsConfiguration('claudeSessions')) {
+        provider.refresh();
+      }
+    }),
   );
 }
 

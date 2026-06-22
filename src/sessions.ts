@@ -23,6 +23,8 @@ export interface Session {
   messageCount: number;
   /** Last-modified time of the transcript (ms since epoch). */
   mtimeMs: number;
+  /** Best "last interaction" time: latest user/assistant record timestamp, else mtime. */
+  lastActivityMs: number;
 }
 
 /**
@@ -77,13 +79,14 @@ async function parseTranscript(
   let lastPrompt: string | undefined;
   let cwd: string | undefined;
   let messageCount = 0;
+  let lastActivityMs = 0;
 
   let raw = '';
   try {
     raw = await fs.promises.readFile(file, 'utf8');
   } catch {
     // Unreadable transcript: fall back to id as title.
-    return { id, file, folderPath, title: id.slice(0, 8), messageCount: 0, mtimeMs };
+    return { id, file, folderPath, title: id.slice(0, 8), messageCount: 0, mtimeMs, lastActivityMs: mtimeMs };
   }
 
   for (const line of raw.split('\n')) {
@@ -116,6 +119,14 @@ async function parseTranscript(
 
     if (obj.type === 'user' || obj.type === 'assistant') {
       messageCount++;
+      // "Last interaction" = newest user/assistant record timestamp (more meaningful
+      // than file mtime, which background writes can bump).
+      if (typeof obj.timestamp === 'string') {
+        const t = Date.parse(obj.timestamp);
+        if (!Number.isNaN(t) && t > lastActivityMs) {
+          lastActivityMs = t;
+        }
+      }
     }
 
     if (!firstPrompt && obj.type === 'user' && obj.message && obj.message.role === 'user' && !obj.isMeta) {
@@ -146,6 +157,7 @@ async function parseTranscript(
     lastPrompt,
     messageCount,
     mtimeMs,
+    lastActivityMs: lastActivityMs || mtimeMs,
   };
 }
 
@@ -190,6 +202,6 @@ export async function listSessions(
     }
   }
 
-  sessions.sort((a, b) => b.mtimeMs - a.mtimeMs);
+  sessions.sort((a, b) => b.lastActivityMs - a.lastActivityMs || a.id.localeCompare(b.id));
   return sessions;
 }
