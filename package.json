@@ -1,0 +1,159 @@
+{
+  "name": "claude-sessions-panel",
+  "displayName": "Claude Sessions Panel",
+  "description": "A sidebar panel listing this project's Claude Code sessions with live status, clickable to resume.",
+  "version": "0.1.0",
+  "publisher": "hyang0129",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/hyang0129/claude-sessions-panel.git"
+  },
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "keywords": [
+    "claude",
+    "claude code",
+    "sessions",
+    "ai"
+  ],
+  "main": "./dist/extension.js",
+  "activationEvents": [
+    "onView:claudeSessions.list"
+  ],
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "claudeSessions",
+          "title": "Claude Sessions",
+          "icon": "resources/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "claudeSessions": [
+        {
+          "id": "claudeSessions.list",
+          "name": "Sessions",
+          "contextualTitle": "Claude Sessions"
+        }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "claudeSessions.list",
+        "contents": "No Claude Code sessions found for this project.\nSessions appear here once you've run Claude Code in this folder.\n[Refresh](command:claudeSessions.refresh)"
+      }
+    ],
+    "commands": [
+      {
+        "command": "claudeSessions.refresh",
+        "title": "Refresh",
+        "category": "Claude Sessions",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "claudeSessions.resume",
+        "title": "Resume Session",
+        "category": "Claude Sessions",
+        "icon": "$(debug-start)"
+      },
+      {
+        "command": "claudeSessions.openTranscript",
+        "title": "Open Transcript (JSONL)",
+        "category": "Claude Sessions",
+        "icon": "$(go-to-file)"
+      },
+      {
+        "command": "claudeSessions.revealInFinder",
+        "title": "Reveal Transcript in Finder",
+        "category": "Claude Sessions"
+      },
+      {
+        "command": "claudeSessions.copySessionId",
+        "title": "Copy Session ID",
+        "category": "Claude Sessions"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "claudeSessions.refresh",
+          "when": "view == claudeSessions.list",
+          "group": "navigation"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "claudeSessions.resume",
+          "when": "view == claudeSessions.list && viewItem == claudeSession",
+          "group": "inline"
+        },
+        {
+          "command": "claudeSessions.openTranscript",
+          "when": "view == claudeSessions.list && viewItem == claudeSession",
+          "group": "1_open@1"
+        },
+        {
+          "command": "claudeSessions.revealInFinder",
+          "when": "view == claudeSessions.list && viewItem == claudeSession",
+          "group": "1_open@2"
+        },
+        {
+          "command": "claudeSessions.copySessionId",
+          "when": "view == claudeSessions.list && viewItem == claudeSession",
+          "group": "9_copy@1"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Claude Sessions Panel",
+      "properties": {
+        "claudeSessions.claudeBinary": {
+          "type": "string",
+          "default": "claude",
+          "description": "Path to the claude CLI used when resuming a session."
+        },
+        "claudeSessions.projectsDir": {
+          "type": "string",
+          "default": "",
+          "description": "Override for the Claude projects directory. Empty means ~/.claude/projects."
+        },
+        "claudeSessions.activeThresholdSeconds": {
+          "type": "number",
+          "default": 60,
+          "description": "Sessions modified within this many seconds are shown as active (green)."
+        },
+        "claudeSessions.recentThresholdSeconds": {
+          "type": "number",
+          "default": 3600,
+          "description": "Sessions modified within this many seconds (but not active) are shown as recent (yellow)."
+        },
+        "claudeSessions.autoRefreshSeconds": {
+          "type": "number",
+          "default": 15,
+          "description": "How often to refresh status from disk. 0 disables the timer (file changes still refresh)."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run build",
+    "build": "node esbuild.js --production",
+    "watch": "node esbuild.js --watch",
+    "typecheck": "tsc --noEmit",
+    "package": "vsce package --no-dependencies"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "@types/vscode": "^1.85.0",
+    "@vscode/vsce": "^3.2.0",
+    "esbuild": "^0.23.0",
+    "typescript": "^5.5.0"
+  }
+}
