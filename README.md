@@ -17,7 +17,9 @@ as an independent companion view in the same window.
   `~/.claude/projects/<encoded-cwd>/`, where the directory name is the project's absolute
   path with every non-alphanumeric character replaced by `-`. This extension encodes the
   workspace folder the same way and reads that directory.
-- **Title** = the session's first real user prompt.
+- **Warp-style row**: a **headline** (Claude Code's generated `ai-title`, falling back to the
+  first prompt) as the label, with a dimmed **trailing detail** snippet (most recent prompt)
+  and relative time after it.
 - **Status dot** based on transcript activity:
   - 🟢 active — modified in the last 60s
   - 🟡 recent — modified in the last hour
