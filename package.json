@@ -2,7 +2,7 @@
   "name": "claude-sessions-panel",
   "displayName": "Claude Sessions Panel",
   "description": "A sidebar panel listing this project's Claude Code sessions with live status, clickable to resume.",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "publisher": "hyang0129",
   "license": "MIT",
   "repository": {

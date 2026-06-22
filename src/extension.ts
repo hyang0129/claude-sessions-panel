@@ -55,6 +55,23 @@ function relativeTime(ms: number, now: number): string {
   return `${day}d ago`;
 }
 
+function truncate(s: string, n: number): string {
+  const t = s.trim();
+  return t.length > n ? `${t.slice(0, n - 1).trimEnd()}…` : t;
+}
+
+/** A prompt snippet that adds information beyond the headline (Warp-style detail). */
+function pickDetail(s: Session): string | undefined {
+  const headline = s.title.trim();
+  for (const cand of [s.lastPrompt, s.firstPrompt]) {
+    const c = cand?.trim();
+    if (c && c !== headline) {
+      return c;
+    }
+  }
+  return undefined;
+}
+
 class SessionItem extends vscode.TreeItem {
   constructor(
     public readonly session: Session,
@@ -62,17 +79,26 @@ class SessionItem extends vscode.TreeItem {
     now: number,
     showFolder: boolean,
   ) {
-    super(session.title, vscode.TreeItemCollapsibleState.None);
+    super(truncate(session.title, 72), vscode.TreeItemCollapsibleState.None);
     this.id = session.file;
     this.contextValue = 'claudeSession';
     this.iconPath = iconFor(status);
 
     const rel = relativeTime(session.mtimeMs, now);
     const folderTag = showFolder ? ` · ${path.basename(session.folderPath)}` : '';
-    this.description = `${rel}${folderTag}`;
+    // Warp-style: prominent headline (label) + dimmed trailing detail (description).
+    const detail = pickDetail(session);
+    const detailPart = detail ? `${truncate(detail, 64)}  ·  ` : '';
+    this.description = `${detailPart}${rel}${folderTag}`;
 
     const md = new vscode.MarkdownString(undefined, true);
     md.appendMarkdown(`**${escapeMd(session.title)}**\n\n`);
+    if (session.aiTitle && session.firstPrompt) {
+      md.appendMarkdown(`- First prompt: ${escapeMd(truncate(session.firstPrompt, 160))}\n`);
+    }
+    if (session.lastPrompt && session.lastPrompt.trim() !== session.title.trim()) {
+      md.appendMarkdown(`- Last prompt: ${escapeMd(truncate(session.lastPrompt, 160))}\n`);
+    }
     md.appendMarkdown(`- Status: ${status}\n`);
     md.appendMarkdown(`- Last active: ${rel}\n`);
     md.appendMarkdown(`- Messages: ${session.messageCount}\n`);

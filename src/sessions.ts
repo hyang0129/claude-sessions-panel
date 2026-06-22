@@ -11,8 +11,14 @@ export interface Session {
   folderPath: string;
   /** cwd recorded inside the transcript, if any (may be a subfolder of folderPath). */
   cwd?: string;
-  /** First real user prompt, used as the row title. */
+  /** Headline shown as the row label: the AI-generated title if present, else the first prompt. */
   title: string;
+  /** Claude Code's generated session title (`ai-title` record), if any. */
+  aiTitle?: string;
+  /** First real user prompt of the session. */
+  firstPrompt?: string;
+  /** Most recent user prompt (`last-prompt` record, else last user message). */
+  lastPrompt?: string;
   /** Count of user + assistant turns. */
   messageCount: number;
   /** Last-modified time of the transcript (ms since epoch). */
@@ -66,7 +72,9 @@ async function parseTranscript(
   mtimeMs: number,
 ): Promise<Session> {
   const id = path.basename(file, '.jsonl');
-  let title = '';
+  let firstPrompt = '';
+  let aiTitle: string | undefined;
+  let lastPrompt: string | undefined;
   let cwd: string | undefined;
   let messageCount = 0;
 
@@ -93,11 +101,24 @@ async function parseTranscript(
       cwd = obj.cwd;
     }
 
+    // Claude Code's generated title — multiple records may exist; the last wins.
+    if (obj.type === 'ai-title' && typeof obj.aiTitle === 'string' && obj.aiTitle.trim()) {
+      aiTitle = obj.aiTitle.trim();
+    }
+
+    // Most recent prompt — last record wins.
+    if (obj.type === 'last-prompt' && typeof obj.lastPrompt === 'string') {
+      const t = obj.lastPrompt.trim();
+      if (t && !t.startsWith('<')) {
+        lastPrompt = t.replace(/\s+/g, ' ');
+      }
+    }
+
     if (obj.type === 'user' || obj.type === 'assistant') {
       messageCount++;
     }
 
-    if (!title && obj.type === 'user' && obj.message && obj.message.role === 'user' && !obj.isMeta) {
+    if (!firstPrompt && obj.type === 'user' && obj.message && obj.message.role === 'user' && !obj.isMeta) {
       const content = obj.message.content;
       // Skip tool results — those are user-role records carrying tool output.
       const isToolResult =
@@ -106,17 +127,26 @@ async function parseTranscript(
         const text = extractText(content).trim();
         // Skip system-reminder / command wrapper messages, which start with '<'.
         if (text && !text.startsWith('<')) {
-          title = text.replace(/\s+/g, ' ').slice(0, 100);
+          firstPrompt = text.replace(/\s+/g, ' ').slice(0, 200);
         }
       }
     }
   }
 
-  if (!title) {
-    title = `(no prompt) ${id.slice(0, 8)}`;
-  }
+  const title = aiTitle || firstPrompt || `(no prompt) ${id.slice(0, 8)}`;
 
-  return { id, file, folderPath, cwd, title, messageCount, mtimeMs };
+  return {
+    id,
+    file,
+    folderPath,
+    cwd,
+    title,
+    aiTitle,
+    firstPrompt: firstPrompt || undefined,
+    lastPrompt,
+    messageCount,
+    mtimeMs,
+  };
 }
 
 /**
