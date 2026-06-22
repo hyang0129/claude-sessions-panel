@@ -7,8 +7,6 @@ clickable to resume.
 It does **not** modify or fork the official Claude Code extension. It sits alongside it
 as an independent companion view in the same window.
 
-![activity bar panel]()
-
 ## What it shows
 
 - One row per session **scoped to the open workspace folder(s)** — the same scoping the
